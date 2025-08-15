@@ -1,0 +1,10 @@
+# Ignore everything
+/*
+
+# But not these files/folders
+!index.html
+!privacy.html
+!refund.html
+!styles.css
+!terms.html
+!.gitignore
