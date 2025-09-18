@@ -19,6 +19,10 @@ async def upload_resume(
         if not user.is_verified:
             raise HTTPException(status_code=403, detail="Email not verified. Please verify your email to use this service.")
 
+        # Check Paddle subscription status
+        if user.subscription_status != "active":
+            raise HTTPException(status_code=402, detail="Subscription inactive. Please renew your monthly plan.")
+
         # Enforce API call limit
         if not check_api_limit(user, limit=1000):
             raise HTTPException(status_code=429, detail="API call limit reached. Upgrade your plan or wait until next month.")

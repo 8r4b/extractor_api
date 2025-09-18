@@ -13,6 +13,7 @@ class User(Base):
     password_reset_token = Column(String, nullable=True, index=True)  # for password reset
     api_calls_this_month = Column(Integer, default=0)  # Track API calls per month
     last_api_reset = Column(String, nullable=True)  # Store last reset date (ISO string)
+    subscription_status = Column(String, default="inactive")  # Paddle subscription status
 
     resumes = relationship("Resume", back_populates="user")
 

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from user_routes import router as user_router
 from resume_routes import router as resume_router
+from paddle_routes import router as paddle_router
 import create_tables
 import uvicorn
 
@@ -24,6 +25,7 @@ create_tables.create_tables()  # Creates tables on startup (optional)
 
 app.include_router(user_router, prefix="/api")
 app.include_router(resume_router, prefix="/api")
+app.include_router(paddle_router, prefix="/api")
 
 @app.get("/")
 def read_root():
