@@ -35,32 +35,28 @@ def extract_skills_and_feedback_from_text(text: str) -> tuple[list[str], str]:
 
         if "Feedback:" in content:
             try:
-                skills_str, feedback = content.split("Feedback:", 1)
-                logger.debug("Extracted skills string: %s", skills_str)  # Log extracted skills string
-                logger.debug("Extracted feedback string: %s", feedback)  # Log extracted feedback string
+                skills_part, feedback_part = content.split("Feedback:", 1)
+                feedback = feedback_part.strip()
 
-                # Remove 'Skills:' prefix and sanitize
-                skills_str = skills_str.replace("Skills:", "", 1).strip()
-                skills_str = skills_str.strip("[]")  # Remove surrounding brackets if present
+                # --- START OF THE FIX ---
+                # Make parsing more robust
+                skills_str = skills_part.replace("Skills:", "", 1).strip()
 
-                # Parse Python literal safely
-                try:
-                    skills = ast.literal_eval(f"[{skills_str}]")
-                    if not isinstance(skills, list):
-                        raise ValueError("Parsed skills is not a list")
-                except (ValueError, SyntaxError) as parse_error:
-                    logger.error("Error parsing skills string: %s", parse_error)
-                    skills = [skills_str]  # Fallback to raw skills string
+                # Clean up the string by removing list-like characters and quotes
+                skills_str = skills_str.strip("[]'\" ")
 
-                feedback = feedback.strip()
+                # Split by comma and clean up each item
+                skills = [skill.strip().strip("'\"") for skill in skills_str.split(',') if skill.strip()]
+                # --- END OF THE FIX ---
+
             except Exception as parse_error:
                 logger.error("Error parsing response: %s", parse_error)
-                skills = [skills_str]  # Fallback to raw skills string
-                feedback = "Unable to parse feedback."
+                skills = []
+                feedback = "Unable to parse feedback from the AI response."
         else:
             logger.warning("Response does not contain 'Feedback:'")
             skills = []
-            feedback = "Feedback not provided."
+            feedback = "Feedback not provided in the AI response."
 
         return skills, feedback
 
