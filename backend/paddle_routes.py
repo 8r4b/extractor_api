@@ -5,29 +5,41 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import User
-import auth # Import your auth module to get the current user
+import auth
 
 router = APIRouter()
 
 @router.post("/paddle/webhook/")
 async def paddle_webhook(request: Request, db: Session = Depends(get_db)):
-    """Handles incoming webhooks from Paddle to update subscription status."""
-    data = await request.form()
-    # In a real app, you'd verify the webhook signature here
-    event_type = data.get("event_type")
-    
-    if event_type == "subscription.created" or event_type == "subscription.updated":
-        email = data.get("data[customer][email]")
-        status = data.get("data[status]") # e.g., "active", "past_due"
-        
-        user = db.query(User).filter(User.email == email).first()
-        if user and status:
-            user.subscription_status = status
-            db.commit()
-            return {"status": "success"}
-            
-    return {"status": "ignored"}
+    """Handles incoming JSON webhooks from Paddle to update subscription status."""
+    try:
+        # In a real app, you'd verify the webhook signature here first
+        payload = await request.json()
+        event_type = payload.get("event_type")
 
+        # Check for subscription events
+        if event_type in ["subscription.created", "subscription.updated", "subscription.activated"]:
+            data = payload.get("data", {})
+            customer_id = data.get("customer_id")
+            status = data.get("status")  # e.g., "active", "past_due"
+
+            # To get the email, you might need to fetch the customer if it's not in the payload
+            # For simplicity, let's assume we can find the user via custom_data if passed during checkout
+            user_id = data.get("custom_data", {}).get("user_id")
+
+            user = db.query(User).filter(User.id == user_id).first()
+            if user and status:
+                user.subscription_status = status
+                db.commit()
+                print(f"Updated user {user.email} to status: {status}")
+                return {"status": "success"}
+
+        print(f"Ignored webhook event: {event_type}")
+        return {"status": "ignored"}
+
+    except Exception as e:
+        print(f"Error processing webhook: {e}")
+        raise HTTPException(status_code=500, detail="Error processing webhook")
 
 @router.get("/checkout")
 async def get_checkout_url(current_user: User = Depends(auth.get_current_user)):
