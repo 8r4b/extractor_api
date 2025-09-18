@@ -65,6 +65,18 @@ class PasswordResetComplete(BaseModel):
     token: str
     new_password: str
 
+
+# ---------- Standard Response Schemas ----------
+
+class SuccessResponse(BaseModel):
+    message: str
+
+class ErrorResponse(BaseModel):
+    detail: str
+
+class DataResponse(BaseModel):
+    data: dict
+
 class ResumeFeedback(BaseModel):
     filename: str
     skills: list[str]

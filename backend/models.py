@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -14,6 +14,7 @@ class User(Base):
     api_calls_this_month = Column(Integer, default=0)  # Track API calls per month
     last_api_reset = Column(String, nullable=True)  # Store last reset date (ISO string)
     subscription_status = Column(String, default="inactive")  # Paddle subscription status
+    subscription_start_date = Column(DateTime, nullable=True) # Add this line
 
     resumes = relationship("Resume", back_populates="user")
 

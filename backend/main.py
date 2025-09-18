@@ -1,12 +1,42 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from rate_limit import limiter
+from slowapi.errors import RateLimitExceeded
+from apscheduler.schedulers.background import BackgroundScheduler
+from database import SessionLocal
+import crud
+
 from user_routes import router as user_router
 from resume_routes import router as resume_router
 from paddle_routes import router as paddle_router
 import create_tables
 import uvicorn
 
+
 app = FastAPI()
+
+# 2. Add the middleware and exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# --- Monthly Reset Scheduler ---
+def monthly_api_reset():
+    """Function to be called by the scheduler."""
+    db = SessionLocal()
+    try:
+        crud.reset_all_user_api_calls(db)
+    finally:
+        db.close()
+
+scheduler = BackgroundScheduler()
+scheduler.add_job(monthly_api_reset, 'cron', day=1, hour=0) # Runs at midnight on the 1st of every month
+
+@app.on_event("startup")
+def startup_event():
+    scheduler.start()
+# --- End of Scheduler Setup ---
+
 
 # Add CORS middleware
 app.add_middleware(

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
 from database import get_db
@@ -6,7 +6,7 @@ import crud
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from auth import verify_password, create_access_token
-from schemas import UserCreate, UserResponse, PasswordResetRequest, PasswordResetComplete
+from schemas import UserCreate, UserResponse, PasswordResetRequest, PasswordResetComplete, SuccessResponse, ErrorResponse, Token
 
 from uuid import uuid4
 from utils.email_utils import send_verification_email
@@ -14,6 +14,7 @@ from utils.email_utils import send_password_reset_email
 from crud import update_user_verification_token
 from crud import update_user_password_reset_token, get_user_by_password_reset_token
 import re
+from rate_limit import limiter
 
 
 router = APIRouter()
@@ -24,8 +25,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-@router.post("/signup")
-def signup(user: UserCreate, db: Session = Depends(get_db)):
+@router.post("/signup", response_model=SuccessResponse, responses={400: {"model": ErrorResponse}}, tags=["User"])
+@limiter.limit("5/minute")
+def signup(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     existing_user = crud.get_user_by_email(db, user.email)
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -37,10 +39,11 @@ def signup(user: UserCreate, db: Session = Depends(get_db)):
     update_user_verification_token(db, user.email, token)
     send_verification_email(user.email, token)
 
-    return {"message": "Signup successful. Check your email to verify your account."}
+    return SuccessResponse(message="Signup successful. Check your email to verify your account.")
 
-@router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@router.post("/login", response_model=Token, responses={400: {"model": ErrorResponse}}, tags=["User"])
+@limiter.limit("5/minute")
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = crud.get_user_by_email(db, form_data.username)
     
     if not user:
@@ -49,9 +52,9 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=400, detail="Incorrect password")
 
     access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return Token(access_token=access_token, token_type="bearer")
 
-@router.get("/verify-email")
+@router.get("/verify-email", response_model=SuccessResponse, responses={400: {"model": ErrorResponse}}, tags=["User"])
 def verify_email(token: str, db: Session = Depends(get_db)):
     user = crud.get_user_by_token(db, token)
     if not user:
@@ -60,21 +63,22 @@ def verify_email(token: str, db: Session = Depends(get_db)):
     user.is_verified = True
     user.verification_token = None
     db.commit()
-    return {"message": "Email verified successfully!"}
+    return SuccessResponse(message="Email verified successfully!")
 
 from schemas import PasswordResetRequest, PasswordResetComplete
 
-@router.post("/forgot-password")
-def forgot_password(data: PasswordResetRequest, db: Session = Depends(get_db)):
+@router.post("/forgot-password", response_model=SuccessResponse, responses={404: {"model": ErrorResponse}}, tags=["User"])
+@limiter.limit("2/minute")
+def forgot_password(request: Request, data: PasswordResetRequest, db: Session = Depends(get_db)):
     user = crud.get_user_by_email(db, data.email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     token = str(uuid4())
     update_user_password_reset_token(db, data.email, token)
     send_password_reset_email(data.email, token)
-    return {"message": "Password reset link sent to your email."}
+    return SuccessResponse(message="Password reset link sent to your email.")
 
-@router.post("/reset-password")
+@router.post("/reset-password", response_model=SuccessResponse, responses={400: {"model": ErrorResponse}}, tags=["User"])
 def reset_password(data: PasswordResetComplete, db: Session = Depends(get_db)):
     user = get_user_by_password_reset_token(db, data.token)
     if not user:
@@ -93,15 +97,16 @@ def reset_password(data: PasswordResetComplete, db: Session = Depends(get_db)):
     user.hashed_password = get_password_hash(data.new_password)
     user.password_reset_token = None
     db.commit()
-    return {"message": "Password reset successful."}
+    return SuccessResponse(message="Password reset successful.")
 
 from pydantic import BaseModel
 
 class ResendVerificationRequest(BaseModel):
     user_email: str
 
-@router.post("/resend-verification-email")
-def resend_verification_email(data: ResendVerificationRequest, db: Session = Depends(get_db)):
+@router.post("/resend-verification-email", response_model=SuccessResponse, responses={404: {"model": ErrorResponse}, 400: {"model": ErrorResponse}}, tags=["User"])
+@limiter.limit("2/minute")
+def resend_verification_email(request: Request, data: ResendVerificationRequest, db: Session = Depends(get_db)):
     user = crud.get_user_by_email(db, data.user_email)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -115,4 +120,4 @@ def resend_verification_email(data: ResendVerificationRequest, db: Session = Dep
     # Send the verification email
     send_verification_email(data.user_email, token)
 
-    return {"message": "Verification email resent successfully. Please check your inbox."}
+    return SuccessResponse(message="Verification email resent successfully. Please check your inbox.")

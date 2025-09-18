@@ -1,4 +1,7 @@
 import os
+import logging
+logger = logging.getLogger("email_utils")
+logging.basicConfig(level=logging.INFO)
 from email.mime.text import MIMEText
 import smtplib
 
@@ -14,9 +17,9 @@ def send_password_reset_email(email: str, token: str):
             smtp.login(os.getenv("EMAIL_ADDRESS"), os.getenv("EMAIL_PASSWORD"))
             smtp.send_message(msg)
     except smtplib.SMTPException as e:
-        print(f"SMTP error occurred: {e}")
+        logger.error(f"SMTP error occurred: {e}")
     except Exception as e:
-        print(f"Error sending password reset email: {e}")
+        logger.error(f"Error sending password reset email: {e}")
 
 
 def send_verification_email(email: str, token: str):
@@ -31,6 +34,6 @@ def send_verification_email(email: str, token: str):
             smtp.login(os.getenv("EMAIL_ADDRESS"), os.getenv("EMAIL_PASSWORD"))
             smtp.send_message(msg)
     except smtplib.SMTPException as e:
-        print(f"SMTP error occurred: {e}")
+        logger.error(f"SMTP error occurred: {e}")
     except Exception as e:
-        print(f"Error sending verification email: {e}")
+        logger.error(f"Error sending verification email: {e}")
