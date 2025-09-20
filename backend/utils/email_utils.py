@@ -6,7 +6,8 @@ from email.mime.text import MIMEText
 import smtplib
 
 def send_password_reset_email(email: str, token: str):
-    link = f"http://localhost:8000/reset-password?token={token}"
+    base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+    link = f"{base_url}/reset-password?token={token}"
     body = f"Click this link to reset your password:\n{link}"
     msg = MIMEText(body)
     msg["Subject"] = "Reset your password"
@@ -23,7 +24,8 @@ def send_password_reset_email(email: str, token: str):
 
 
 def send_verification_email(email: str, token: str):
-    link = f"http://localhost:8000/verify-email?token={token}"
+    base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+    link = f"{base_url}/verify-email?token={token}"
     body = f"Click this link to verify your email:\n{link}"
     msg = MIMEText(body)
     msg["Subject"] = "Verify your email"
