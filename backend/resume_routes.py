@@ -20,9 +20,14 @@ async def upload_resume(
     if not user.is_verified:
         raise HTTPException(status_code=403, detail="Email not verified. Please verify your email to use this service.")
 
-    # Check Paddle subscription status
+
+    # Free trial logic: allow up to 5 free calls for non-subscribed users
     if user.subscription_status != "active":
-        raise HTTPException(status_code=402, detail="Subscription inactive. Please renew your monthly plan.")
+        if user.free_trial_calls < 5:
+            user.free_trial_calls += 1
+            db.commit()
+        else:
+            raise HTTPException(status_code=402, detail="Free trial ended. Please subscribe to continue using the service.")
 
     # NEW: Check if the user's billing cycle has reset
     check_and_reset_api_usage(db, user)

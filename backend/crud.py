@@ -68,6 +68,7 @@ def reset_all_user_api_calls(db: Session):
 
 def increment_api_calls(db: Session, user: User):
     user.api_calls_this_month += 1
+    # Optionally increment free_trial_calls here if you want to track all API usage
     db.commit()
     db.refresh(user)
 

@@ -15,6 +15,7 @@ class User(Base):
     last_api_reset = Column(String, nullable=True)  # Store last reset date (ISO string)
     subscription_status = Column(String, default="inactive")  # Paddle subscription status
     subscription_start_date = Column(DateTime, nullable=True) # Add this line
+    free_trial_calls = Column(Integer, default=0)  # Track free trial usage
 
     resumes = relationship("Resume", back_populates="user")
 
